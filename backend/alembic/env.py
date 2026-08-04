@@ -6,6 +6,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from app.config import settings
 from app.database import Base
 from app.models.user import User
+from app.models.document import Document
 
 from logging.config import fileConfig
 
