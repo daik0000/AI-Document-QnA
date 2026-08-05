@@ -17,12 +17,13 @@ search, sẽ thêm ở giai đoạn sau) + AI Provider API cho RAG.
 
 - [x] **Giai đoạn 0** — Khởi tạo repo
 - [x] **Giai đoạn 1** — Backend nền tảng: Auth (JWT) + CRUD document metadata
-- [ ] Giai đoạn 2 — Upload file, extract text, chunking
+- [x] **Giai đoạn 2** — Upload file, extract text, chunking
 - [ ] Giai đoạn 3 — Embedding & Vector DB
 - [ ] Giai đoạn 4 — RAG pipeline hoàn chỉnh
 - [ ] Giai đoạn 5 — Frontend
 - [ ] Giai đoạn 6 — Nâng cấp trải nghiệm (streaming, rate limit...)
 - [ ] Giai đoạn 7 — Đóng gói & Deploy
+- [ ] Giai đoạn 8 — Hoàn thiện hồ sơ
 
 ## Tech stack (đã dùng tới hiện tại)
 
@@ -30,6 +31,7 @@ search, sẽ thêm ở giai đoạn sau) + AI Provider API cho RAG.
 - **ORM:** SQLAlchemy 2.0 + Alembic (migration)
 - **Database:** MySQL 8 (chạy qua Docker)
 - **Auth:** JWT (python-jose) + bcrypt (passlib)
+- **Xử lý file:** pdfplumber (PDF), python-docx (DOCX)
 
 ## Hướng dẫn chạy local
 
@@ -94,12 +96,29 @@ search, sẽ thêm ở giai đoạn sau) + AI Provider API cho RAG.
 ### Documents
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| POST | `/documents` | Tạo document record (chưa upload file thật) |
+| POST | `/documents/upload` | Upload file thật (PDF/DOCX/TXT, tối đa 10MB), tự động extract text + chunking ở background |
 | GET | `/documents` | Danh sách document của user hiện tại |
 | GET | `/documents/{id}` | Chi tiết 1 document (404 nếu không phải của bạn) |
 | DELETE | `/documents/{id}` | Xóa document |
 
 > Toàn bộ endpoint `/documents/*` yêu cầu Authorization header:
 > `Bearer <access_token>` lấy từ `/auth/login`.
+
+**Về `POST /documents/upload`:**
+- Nhận `multipart/form-data`, field `file`.
+- Định dạng hỗ trợ: `.pdf`, `.docx`, `.txt`. Kích thước tối đa 10MB.
+- Response trả về ngay với `status: "processing"`; việc extract text +
+  chunking chạy nền (background task). Gọi lại `GET /documents/{id}` sau
+  vài giây để kiểm tra `status` đã chuyển sang `"ready"` (thành công) hay
+  `"failed"` (lỗi, ví dụ không trích được text) chưa.
+- **Giới hạn hiện tại:** chỉ hỗ trợ PDF có lớp text thật (native PDF).
+  PDF dạng scan/ảnh sẽ bị đánh dấu `"failed"` vì chưa tích hợp OCR.
+
+## Cấu trúc lưu trữ
+
+File upload được lưu tại `backend/storage/<user_id>/<uuid>.<ext>` — tên
+file trên đĩa là UUID ngẫu nhiên (không dùng tên gốc user đặt) để tránh
+path traversal. Tên file gốc vẫn được lưu lại trong cột `filename` ở DB
+để hiển thị cho người dùng.
 
 ---

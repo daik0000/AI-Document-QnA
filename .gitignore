@@ -1,6 +1,6 @@
 # Project-specific
-backend/storage/uploads/*
-!backend/storage/uploads/.gitkeep
+backend/storage/*
+!backend/storage/.gitkeep
 backend/chroma_db/
 *.db
 
