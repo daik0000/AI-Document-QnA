@@ -1,12 +1,16 @@
+from pydoc import doc
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from app.models.document import Document
+from app.services.text_extraction_service import extract_text
+from app.utils.text_splitter import split_text_into_chunks
 import os
 import uuid
 from pathlib import Path
 
 # === Defining constants for file handling ===
-ALLOWED_EXTENSIONS = {"pdf", "docx"}
+ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}  # Allowed file types for upload
 MAX_FILE_SIZE_MB = 10 
 STORAGE_DIR = Path("storage") 
 
@@ -59,6 +63,30 @@ async def save_uploaded_file(file: UploadFile, user_id: int) -> tuple[str, str]:
         f.write(content)
 
     return str(file_path), ext
+
+
+def process_document(document: Document) -> None:
+    from app.database import SessionLocal  # Import here to avoid circular imports
+    db = SessionLocal()  # Create a new session for background processing   
+
+    try:
+        try:
+            doc = db.query(Document).filter(Document.id == document.id).first()
+            text = extract_text(doc.file_path, doc.file_type)
+            chunks = split_text_into_chunks(text)
+
+            doc.num_chunks = len(chunks)
+            doc.status = "ready"
+
+        except Exception as e:
+            doc.status = "failed"
+            print(f"[ERROR] Failed to process document ID {document.id}: {str(e)}")
+
+        pass
+
+    finally:
+        db.commit()
+        db.close()
 
 def get_documents_by_user(db: Session, user_id: int) -> list[Document]:
     return db.query(Document).filter(Document.user_id == user_id).all()
