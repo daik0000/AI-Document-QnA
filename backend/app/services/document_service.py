@@ -5,6 +5,8 @@ from fastapi import HTTPException, status, UploadFile
 from app.models.document import Document
 from app.services.text_extraction_service import extract_text
 from app.utils.text_splitter import split_text_into_chunks
+from app.services import embedding_service, vector_store_service
+
 import os
 import uuid
 from pathlib import Path
