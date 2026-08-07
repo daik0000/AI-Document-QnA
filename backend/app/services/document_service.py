@@ -5,7 +5,7 @@ from fastapi import HTTPException, status, UploadFile
 from app.models.document import Document
 from app.services.text_extraction_service import extract_text
 from app.utils.text_splitter import split_text_into_chunks
-from app.services import embedding_service, vector_store_service
+from app.services import embedding_service, vector_store
 
 import os
 import uuid
@@ -74,9 +74,18 @@ def process_document(document: Document) -> None:
     try:
         try:
             doc = db.query(Document).filter(Document.id == document.id).first()
+
+            if doc is None:
+                return # Document not found, possibly deleted before processing
+
             text = extract_text(doc.file_path, doc.file_type)
             chunks = split_text_into_chunks(text)
 
+            embeddings = embedding_service.embed_documents(chunks)
+            collection_name = f"user_{doc.user_id}_doc_{doc.id}"
+            vector_store.add_chunks(collection_name, chunks, embeddings)
+
+            doc.vector_collection_name = collection_name
             doc.num_chunks = len(chunks)
             doc.status = "ready"
 
@@ -114,6 +123,9 @@ def delete_document(db: Session, user_id: int, document_id: int) -> None:
     file_path = Path(doc.file_path)
     if file_path.exists():
         file_path.unlink()  # delete the file from storage
+
+    if doc.vector_collection_name:
+        vector_store.delete_collection(doc.vector_collection_name)
 
     db.delete(doc)
     db.commit()

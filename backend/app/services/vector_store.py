@@ -12,7 +12,10 @@ def get_collection(collection_name: str):
     Returns:
         Collection: Collection tuong ung voi ten collection.
     """
-    return _client.get_or_create_collection(name=collection_name)
+    if not collection_name:
+        raise ValueError("collection_name must not be empty or None")
+
+    return _client.get_or_create_collection(name=collection_name, metadata={"hnsw:space": "cosine"})
 
 def add_chunks(
         collection_name: str,
@@ -44,7 +47,7 @@ def query_top_k(
         collection_name: str,
         query_embedding: list[float],
         k: int = 5
-) -> list[dict]:
+) -> dict:
     """
     Truy van top-k cac chunk tuong ung voi embedding cua truy van.
     Args:
@@ -53,14 +56,17 @@ def query_top_k(
         k (int): So luong ket qua can lay.
     
     Returns:
-        list[dict]: Danh sach cac ket qua tuong ung voi top-k chunk.
+        dict: Toan bo response tra ve tu Chroma, gom documents, distances, ids, metadatas.
     """
+    if not collection_name:
+        raise ValueError("Document does not have a vector_collection_name yet")
+
     collection = get_collection(collection_name)
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=k
     )
-    return results["documents"][0]  # Tra ve danh sach cac chunk tuong ung voi top-k
+    return results
 
 def delete_collection(collection_name: str) -> None:
     """
