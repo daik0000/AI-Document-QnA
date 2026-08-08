@@ -74,8 +74,12 @@ export default function Dashboard() {
 
     const handleDelete = async (id) => {
         if (!confirm('Xóa tài liệu này?')) return;
-        await client.delete(`/documents/${id}`);
-        fetchDocuments();
+        try {
+            await client.delete(`/documents/${id}`);
+            fetchDocuments();
+        } catch (err) {
+            setError('Xóa tài liệu thất bại');
+        }
     };
 
     return (
