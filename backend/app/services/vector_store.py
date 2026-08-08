@@ -80,5 +80,5 @@ def delete_collection(collection_name: str) -> None:
     try:
         _client.delete_collection(name=collection_name)
     except Exception as e:
-        print(f"[ERROR] Khong the xoa collection {collection_name}: {e}")
+        print(f"[WARNING] Khong the xoa collection {collection_name}: {e}")
         pass
