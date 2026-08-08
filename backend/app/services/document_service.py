@@ -6,6 +6,7 @@ from app.models.document import Document
 from app.services.text_extraction_service import extract_text
 from app.utils.text_splitter import split_text_into_chunks
 from app.services import embedding_service, vector_store
+from app.models.chat_session import ChatSession
 
 import os
 import uuid
@@ -119,6 +120,13 @@ def get_document_by_id(db: Session, user_id: int, document_id: int) -> Document:
 
 def delete_document(db: Session, user_id: int, document_id: int) -> None:
     doc = get_document_by_id(db, user_id, document_id)  # tận dụng lại, tự raise 404 nếu không phải của user này
+
+    # Xóa các chat session liên quan trước (cascade sẽ tự xóa luôn chat_messages con)
+    sessions = db.query(ChatSession).filter(ChatSession.document_id == document_id).all()
+    for session in sessions:
+        db.delete(session)
+
+    db.commit()
 
     file_path = Path(doc.file_path)
     if file_path.exists():
