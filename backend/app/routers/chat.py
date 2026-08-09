@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import json
 
+from app.core.limiter import limiter
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -29,7 +32,9 @@ def list_sessions(
 
 
 @router.post("/sessions/{session_id}/message", response_model=MessageOut)
+@limiter.limit("10/minute")  # Giới hạn số lượng request gửi câu hỏi trong 1 phút
 def send_message(
+    request: Request,
     session_id: int,
     data: MessageCreate,
     db: Session = Depends(get_db),
@@ -38,6 +43,22 @@ def send_message(
     session = chat_service.get_session_by_id(db, current_user.id, session_id)
     return rag_service.ask_question(db, session, data.question)
 
+@router.post("/sessions/{session_id}/message/stream")
+@limiter.limit("10/minute")  # Giới hạn số lượng request gửi câu hỏi trong 1 phút
+def send_message_stream(
+    request: Request,
+    session_id: int,
+    data: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = chat_service.get_session_by_id(db, current_user.id, session_id)
+
+    def event_generator():
+        for event in rag_service.ask_question_stream(db, session, data.question):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/sessions/{session_id}/history", response_model=list[MessageOut])
 def get_history(

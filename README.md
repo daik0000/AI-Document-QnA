@@ -22,7 +22,7 @@ Xem chi tiết tại [docs/architecture.md](docs/architecture.md).
 
 Tổng quan: React (Vite) frontend + FastAPI backend + MySQL (dữ liệu quan
 hệ) + ChromaDB (vector DB, semantic search) + Gemini API (embedding + LLM
-cho RAG).
+cho RAG, hỗ trợ streaming).
 
 ## Tiến độ
 
@@ -32,12 +32,12 @@ cho RAG).
 - [x] **Giai đoạn 3** — Embedding & Vector DB
 - [x] **Giai đoạn 4** — RAG pipeline hoàn chỉnh
 - [x] **Giai đoạn 5** — Frontend
-- [ ] Giai đoạn 6 — Nâng cấp trải nghiệm (streaming, rate limit...)
+- [x] **Giai đoạn 6** — Nâng cấp trải nghiệm (streaming, rate limit, error handling)
 - [ ] Giai đoạn 7 — Đóng gói & Deploy
 
 ## Tech stack
 
-- **Frontend:** React (Vite) + TailwindCSS + React Router + axios
+- **Frontend:** React (Vite) + TailwindCSS + React Router + axios + fetch streaming (SSE)
 - **Backend:** FastAPI + Pydantic
 - **ORM:** SQLAlchemy 2.0 + Alembic (migration)
 - **Database:** MySQL 8 (chạy qua Docker)
@@ -45,7 +45,8 @@ cho RAG).
 - **Xử lý file:** pdfplumber (PDF), python-docx (DOCX)
 - **Embedding:** Gemini API (`gemini-embedding-001`, 768 chiều)
 - **Vector DB:** ChromaDB (local, persistent, 1 collection/document)
-- **LLM (sinh câu trả lời):** Gemini API (`gemini-2.5-flash`)
+- **LLM (sinh câu trả lời):** Gemini API (`gemini-2.5-flash`), hỗ trợ streaming
+- **Rate limiting:** slowapi (giới hạn theo IP)
 
 ## Hướng dẫn chạy local
 
@@ -119,7 +120,8 @@ Frontend chạy tại http://localhost:5173.
 3. Chờ trạng thái tự chuyển "Đang xử lý" → "Sẵn sàng" (tự động, không cần
    tải lại trang)
 4. Bấm "Chat" trên tài liệu đã sẵn sàng, đặt câu hỏi
-5. Xem câu trả lời kèm nguồn trích dẫn (mở rộng để xem đoạn gốc)
+5. Câu trả lời hiện dần từng chữ (streaming), kèm nguồn trích dẫn (mở rộng
+   để xem đoạn gốc)
 
 ## API hiện có
 
@@ -133,7 +135,7 @@ Frontend chạy tại http://localhost:5173.
 ### Documents
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| POST | `/documents/upload` | Upload file thật (PDF/DOCX/TXT, tối đa 10MB), tự động extract text + chunking + embedding ở background |
+| POST | `/documents/upload` | Upload file thật (PDF/DOCX/TXT, tối đa 10MB), tự động extract text + chunking + embedding ở background. Giới hạn 5 lần/phút mỗi IP |
 | GET | `/documents` | Danh sách document của user hiện tại |
 | GET | `/documents/{id}` | Chi tiết 1 document (404 nếu không phải của bạn) |
 | DELETE | `/documents/{id}` | Xóa document (kèm file thật, vector collection, và các phiên chat liên quan) |
@@ -143,12 +145,18 @@ Frontend chạy tại http://localhost:5173.
 |---|---|---|
 | POST | `/chat/sessions` | Tạo phiên chat mới cho 1 document (document phải ở status `ready`) |
 | GET | `/chat/sessions/{document_id}` | Danh sách phiên chat của 1 document |
-| POST | `/chat/sessions/{id}/message` | Gửi câu hỏi, nhận câu trả lời kèm trích dẫn nguồn |
+| POST | `/chat/sessions/{id}/message` | Gửi câu hỏi, nhận trọn câu trả lời kèm trích dẫn nguồn (non-streaming). Giới hạn 10 lần/phút mỗi IP |
+| POST | `/chat/sessions/{id}/message/stream` | Như trên nhưng trả lời dạng SSE, hiện dần từng chữ. Giới hạn 10 lần/phút mỗi IP |
 | GET | `/chat/sessions/{id}/history` | Lấy lịch sử hỏi đáp của 1 phiên chat |
 
 > Toàn bộ endpoint `/documents/*` và `/chat/*` yêu cầu Authorization header:
 > `Bearer <access_token>`, và đều được kiểm tra quyền sở hữu (user chỉ
-> thấy/thao tác được dữ liệu của chính mình).
+> thấy/thao tác được dữ liệu của chính mình). Vượt giới hạn rate limit trả
+> về `429 Too Many Requests`.
+
+**Format lỗi nhất quán:** mọi response lỗi (400/401/404/429/500...) đều trả
+về dạng `{"detail": "...", "code": <status_code>}`. Lỗi không lường trước
+(500) được log đầy đủ ở server, nhưng không lộ traceback ra client.
 
 **Giới hạn hiện tại:**
 - Chỉ hỗ trợ PDF có lớp text thật (native PDF); PDF scan/ảnh chưa xử lý
@@ -158,8 +166,8 @@ Frontend chạy tại http://localhost:5173.
   nhận diện bố cục cột.
 - Mỗi câu hỏi trong 1 phiên chat được xử lý độc lập, chưa giữ ngữ cảnh hội
   thoại nhiều lượt (multi-turn).
-- Chưa có streaming response — câu trả lời hiện nguyên cục sau khi LLM xử
-  lý xong, không hiện dần từng chữ.
+- Rate limit tính theo IP, chưa theo user đăng nhập (nhiều user chung
+  mạng NAT có thể bị giới hạn nhầm chung).
 
 ## Cấu trúc lưu trữ
 
