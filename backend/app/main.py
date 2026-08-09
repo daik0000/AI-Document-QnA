@@ -24,6 +24,12 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.core.exception_handlers import http_exception_handler, unhandled_exception_handler
+
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
