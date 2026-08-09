@@ -28,6 +28,48 @@ def _build_promt(context_chunks: list[str], question: str) -> str:
     context = "\n\n---\n\n".join(context_chunks)
     return PROMPT_TEMPLATE.format(context=context, question=question)
 
+def ask_question_stream(db: Session, session: ChatSession, question: str):
+    doc = db.query(Document).filter(Document.id == session.document_id).first()
+
+    query_vector = embedding_service.embed_query(question)
+    results = vector_store.query_top_k(doc.vector_collection_name, query_vector, k=TOP_K)
+    chunks = results["documents"][0]
+    distances = results["distances"][0]
+    prompt = _build_promt(chunks, question)
+
+    source_chunks = [
+        {"text": chunk, "distance": round(dist, 4)}
+        for chunk, dist in zip(chunks, distances)
+    ]
+
+    user_msg = ChatMessage(
+        session_id=session.id,
+        role="user",
+        content=question,
+    )
+
+    db.add(user_msg)
+    db.commit()
+
+    full_answer = ""
+    for piece in llm_service.generate_answer_stream(prompt):
+        full_answer += piece
+        yield {
+            "type": "chunk",
+            "text": piece,
+       }
+
+    assistant_msg = ChatMessage(
+        session_id=session.id,
+        role="assistant",
+        content=full_answer,
+        source_chunks=source_chunks
+    )
+
+    db.add(assistant_msg)
+    db.commit()
+    db.refresh(assistant_msg)
+
 def ask_question(db: Session, session: ChatSession, question: str) -> ChatMessage:
     """
     Trả lời câu hỏi dựa trên các chunk của tài liệu được lưu trong session.
