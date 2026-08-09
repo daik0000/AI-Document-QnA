@@ -36,17 +36,72 @@ export default function Chat() {
         e.preventDefault();
         if (!question.trim() || !sessionId) return;
 
-        const userMessage = { role: 'user', content: question, id: `temp-${Date.now()}` };
-        setMessages((prev) => [...prev, userMessage]);
+        const q = question;
+        const userMessage = { role: 'user', content: q, id: `temp-${Date.now()}` };
+        const assistantId = `temp-assistant-${Date.now()}`;
+        setMessages((prev) => [
+            ...prev, 
+            userMessage,
+            {
+                id: assistantId,
+                role: 'assistant',
+                content: '...',
+                source_chunks: [],
+            }    
+        ]);
         setQuestion('');
         setSending(true);
         setError('');
 
         try {
-            const res = await client.post(`/chat/sessions/${sessionId}/message`, {
-                question: userMessage.content,
-            });
-            setMessages((prev) => [...prev, res.data]);
+            const token = localStorage.getItem('token');
+            const res = await fetch(
+                `http://localhost:8000/chat/sessions/${sessionId}/messages/stream`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ question: q }),
+                }
+            );
+
+            if (!res.ok) {
+                throw new Error('Gửi câu hỏi thất bại');
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop();
+
+                for (const part of parts) {
+                    if (!part.startsWith('data: ')) continue;
+                    const event = JSON.parse(part.slice(6));
+
+                    if (event.type === 'chunk') {
+                        setMessages((prev) => prev.map((msg) =>
+                            msg.id === assistantId
+                                ? { ...msg, content: msg.content + event.data }
+                                : msg
+                        ));
+                    }
+                    else if (event.type === 'done') {
+                        setMessages((prev) => prev.map((msg) =>
+                            msg.id === assistantId
+                                ? { ...msg, source_chunks: event.source_chunks }
+                                : msg
+                        ));
+                    }
+                }
+            }
         } catch (err) {
             setError(err.response?.data?.detail || 'Gửi câu hỏi thất bại');
         } finally {
