@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
 
+from app.core.limiter import limiter
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -31,7 +32,9 @@ def list_sessions(
 
 
 @router.post("/sessions/{session_id}/message", response_model=MessageOut)
+@limiter.limit("10/minute")  # Giới hạn số lượng request gửi câu hỏi trong 1 phút
 def send_message(
+    request: Request,
     session_id: int,
     data: MessageCreate,
     db: Session = Depends(get_db),
@@ -41,7 +44,9 @@ def send_message(
     return rag_service.ask_question(db, session, data.question)
 
 @router.post("/sessions/{session_id}/message/stream")
+@limiter.limit("10/minute")  # Giới hạn số lượng request gửi câu hỏi trong 1 phút
 def send_message_stream(
+    request: Request,
     session_id: int,
     data: MessageCreate,
     db: Session = Depends(get_db),

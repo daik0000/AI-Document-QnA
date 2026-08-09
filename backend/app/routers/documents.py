@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter
 from app.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -10,7 +11,9 @@ from app.services import document_service
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.post("/upload", response_model=DocumentOut, status_code=201)
+@limiter.limit("5/minute")  # Giới hạn số lượng request upload tài liệu trong 1 phút
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...), # File(...) indicates that this endpoint expects a file upload. The file parameter will be populated with the uploaded file.
     db: Session = Depends(get_db),
