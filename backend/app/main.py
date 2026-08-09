@@ -14,7 +14,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://ai-document-qna.vercel.app/"],
+    allow_origins=["http://localhost:5173", "https://ai-document-qna.vercel.app"],
     allow_credentials=True, # credentials are allowed to be sent in cross-origin requests
     allow_methods=["*"], # allow all HTTP methods (GET, POST, PUT, DELETE, etc.) in cross-origin requests
     allow_headers=["*"], # allow all headers in cross-origin requests
