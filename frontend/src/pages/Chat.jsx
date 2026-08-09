@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export default function Chat() {
     const { documentId } = useParams();
     const [sessionId, setSessionId] = useState(null);
@@ -56,7 +58,7 @@ export default function Chat() {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(
-                `http://localhost:8000/chat/sessions/${sessionId}/message/stream`,
+                `${API_URL}/chat/sessions/${sessionId}/message/stream`,
                 {
                     method: 'POST',
                     headers: {
