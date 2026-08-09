@@ -171,4 +171,9 @@ Chi tiết biến môi trường cần thiết cho từng nền tảng xem trong
 - **Lịch sử chat:** MySQL, bảng `chat_sessions` và `chat_messages` (kèm `source_chunks` dạng JSON để phục vụ trích dẫn nguồn).
 - **JWT:** frontend lưu ở `localStorage` (đơn giản, khớp với thiết kế backend trả token qua JSON body; đánh đổi là rủi ro XSS cao hơn so với httpOnly cookie — có thể nâng cấp sau nếu cần).
 
+## Những điều đáng chú ý trong quá trình xây dựng
+
+- **Giới hạn của vector search:** qua thực nghiệm, phát hiện rằng cosine distance không đủ tin cậy để tự động phân loại "câu hỏi có liên quan tới tài liệu hay không" — quyết định giao việc này cho LLM ở tầng generation (qua system prompt), thay vì đặt ngưỡng cứng ở tầng retrieval.
+- **Bảo vệ dữ liệu giữa các user (IDOR):** tự thiết kế và kiểm thử cơ chế đảm bảo mọi query liên quan tới document/chat đều lọc theo `user_id` ngay trong câu query, không chỉ ở tầng kiểm tra sau đó — tránh rò rỉ dữ liệu qua việc đoán ID.
+
 ---
