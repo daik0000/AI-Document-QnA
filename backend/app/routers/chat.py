@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import json
 
 from app.database import get_db
 from app.core.dependencies import get_current_user
@@ -50,7 +51,7 @@ def send_message_stream(
 
     def event_generator():
         for event in rag_service.ask_question_stream(db, session, data.question):
-            yield f"data: {event}\n\n"
+            yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

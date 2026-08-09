@@ -70,6 +70,12 @@ def ask_question_stream(db: Session, session: ChatSession, question: str):
     db.commit()
     db.refresh(assistant_msg)
 
+    yield {
+        "type": "done",
+        "message_id": assistant_msg.id,
+        "source_chunks": source_chunks
+    }
+
 def ask_question(db: Session, session: ChatSession, question: str) -> ChatMessage:
     """
     Trả lời câu hỏi dựa trên các chunk của tài liệu được lưu trong session.

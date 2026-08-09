@@ -45,7 +45,7 @@ export default function Chat() {
             {
                 id: assistantId,
                 role: 'assistant',
-                content: '...',
+                content: '',
                 source_chunks: [],
             }    
         ]);
@@ -56,7 +56,7 @@ export default function Chat() {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(
-                `http://localhost:8000/chat/sessions/${sessionId}/messages/stream`,
+                `http://localhost:8000/chat/sessions/${sessionId}/message/stream`,
                 {
                     method: 'POST',
                     headers: {
@@ -89,14 +89,14 @@ export default function Chat() {
                     if (event.type === 'chunk') {
                         setMessages((prev) => prev.map((msg) =>
                             msg.id === assistantId
-                                ? { ...msg, content: msg.content + event.data }
+                                ? { ...msg, content: msg.content + event.text }
                                 : msg
                         ));
                     }
                     else if (event.type === 'done') {
                         setMessages((prev) => prev.map((msg) =>
                             msg.id === assistantId
-                                ? { ...msg, source_chunks: event.source_chunks }
+                                ? { ...msg, id: event.message_id, source_chunks: event.source_chunks }
                                 : msg
                         ));
                     }
