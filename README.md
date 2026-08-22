@@ -2,10 +2,8 @@
 
 Hệ thống cho phép user upload tài liệu (PDF/DOCX/TXT), sau đó "chat" hỏi đáp dựa trên nội dung tài liệu đó (RAG — Retrieval Augmented Generation), có trích dẫn nguồn.
 
-## Demo trực tuyến
-
-- **Frontend:** https://ai-document-qna.vercel.app
-- **Backend API docs:** https://ai-document-qna-production.up.railway.app/docs
+## Demo trực tuyến 
+Hiện không khả dụng. <*Coming soon...*>
 
 ## Demo giao diện
 
